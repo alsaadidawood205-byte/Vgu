@@ -1,0 +1,1554 @@
+-- ═══════════════════════════════════════════════════════
+-- 🐄 سكربت النعجة 🐗 - الجزء 1 من 8
+-- ═══════════════════════════════════════════════════════
+
+-- =============================================
+-- إعدادات الواجهة الرئيسية (أزرق غامق)
+-- =============================================
+local Configs_HUB = { 
+  Cor_Hub = Color3.fromRGB(10, 14, 30),
+  Cor_Options = Color3.fromRGB(20, 30, 55),
+  Cor_Stroke = Color3.fromRGB(100, 180, 255),
+  Cor_Text = Color3.fromRGB(255, 255, 255),
+  Cor_DarkText = Color3.fromRGB(180, 200, 230),
+  Cor_Accent = Color3.fromRGB(255, 215, 0),
+  Corner_Radius = UDim.new(0, 12),
+  Text_Font = Enum.Font.GothamBold
+}
+
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local lp = Players.LocalPlayer
+
+-- استخدام صورة الدبكة الجديدة
+local IMAGE_ICON = "rbxassetid://129688031595852"
+local IMAGE_BG = "rbxassetid://118314173089906"
+
+local ClickSound = Instance.new("Sound")
+ClickSound.SoundId = "rbxassetid://6895079853"
+ClickSound.Volume = 1.5
+ClickSound.Parent = SoundService
+
+local function Create(instance, parent, props)
+  local new = Instance.new(instance, parent)
+  if props then
+    for prop, value in pairs(props) do
+      new[prop] = value
+    end
+  end
+  return new
+end
+
+local function SetProps(instance, props)
+  if instance and props then
+    for prop, value in pairs(props) do
+      instance[prop] = value
+    end
+  end
+  return instance
+end
+
+local function Corner(parent, props)
+  local new = Create("UICorner", parent)
+  new.CornerRadius = Configs_HUB.Corner_Radius
+  if props then
+    SetProps(new, props)
+  end
+  return new
+end
+
+local function Stroke(parent, props)
+  local new = Create("UIStroke", parent)
+  new.Color = Configs_HUB.Cor_Stroke
+  new.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+  new.Thickness = 2
+
+  local gradient = Instance.new("UIGradient")
+  gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 180, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(50, 100, 200)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 180, 255))
+  }
+  gradient.Rotation = 0
+  gradient.Parent = new
+
+  coroutine.wrap(function()
+    while new.Parent do
+      gradient.Rotation = (gradient.Rotation + 2) % 360
+      RunService.RenderStepped:Wait()
+    end
+  end)()
+
+  if props then
+    SetProps(new, props)
+  end
+  return new
+end
+
+local function GoldStroke(parent, props)
+  local new = Create("UIStroke", parent)
+  new.Color = Configs_HUB.Cor_Accent
+  new.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+  new.Thickness = 2
+  if props then
+    SetProps(new, props)
+  end
+  return new
+end
+
+local function CreateTween(instance, prop, value, time, tweenWait)
+  local tween = TweenService:Create(instance,
+  TweenInfo.new(time, Enum.EasingStyle.Linear),
+  {[prop] = value})
+  tween:Play()
+  if tweenWait then
+    tween.Completed:Wait()
+  end
+end
+
+local function TextSetColor(instance)
+  instance.MouseEnter:Connect(function()
+    CreateTween(instance, "TextColor3", Configs_HUB.Cor_Accent, 0.3, false)
+  end)
+  instance.MouseLeave:Connect(function()
+    CreateTween(instance, "TextColor3", Configs_HUB.Cor_Text, 0.3, false)
+  end)
+end
+
+-- =============================================
+-- متغيرات المص والاغتصاب
+-- =============================================
+local foundPlayer = nil
+local faceSitEnabled = false
+local bangEnabled = false
+local bangTarget = nil
+local spyEnabled = false
+local spyTarget = nil
+local originalCameraSubject = nil
+local autoSpyEnabled = false
+local selectedFlingPlayer = nil
+
+-- حفظ حالة الأزرار
+local toggleStates = {}
+local sliderValues = {}
+local dropdownSelections = {}
+
+local function resetVel()
+    pcall(function()
+        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = lp.Character.HumanoidRootPart
+            hrp.Velocity = Vector3.zero
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            if lp.Character:FindFirstChild("Humanoid") then
+                lp.Character.Humanoid.Sit = false
+            end
+        end
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if (faceSitEnabled or bangEnabled) and bangTarget and bangTarget.Character then
+            local targetChar = bangTarget.Character
+            if not targetChar:FindFirstChild("HumanoidRootPart") then return end
+            if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+            
+            local hrp = lp.Character.HumanoidRootPart
+            local move = math.sin(tick() * 150) * 1.5
+            hrp.Velocity = Vector3.zero
+            
+            if faceSitEnabled and targetChar:FindFirstChild("Head") then
+                lp.Character.Humanoid.Sit = true
+                hrp.CFrame = targetChar.Head.CFrame * CFrame.new(0, 0.2, -0.5 + move) * CFrame.Angles(0, math.rad(180), 0)
+            elseif bangEnabled then
+                lp.Character.Humanoid.Sit = false
+                hrp.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0.5, 1.1 + move)
+            end
+        end
+    end)
+end)
+
+local function stopSpy()
+    if not spyEnabled then return end
+    spyEnabled = false
+    pcall(function()
+        local camera = workspace.CurrentCamera
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+            camera.CameraSubject = lp.Character.Humanoid
+        elseif originalCameraSubject then
+            camera.CameraSubject = originalCameraSubject
+        end
+    end)
+    spyTarget = nil
+end
+
+local function startSpy(target)
+    if not target then return end
+    if not target.Character or not target.Character:FindFirstChild("Humanoid") then return end
+    spyEnabled = true
+    spyTarget = target
+    pcall(function()
+        local camera = workspace.CurrentCamera
+        originalCameraSubject = camera.CameraSubject
+        camera.CameraSubject = target.Character.Humanoid
+    end)
+end
+
+-- =============================================
+-- دوال الكراسي (TrapChair و MurderChair)
+-- =============================================
+local function spawnTrapChair(targetPlayerName)
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetPart = targetPlayer.Character.HumanoidRootPart
+        local box = Instance.new("Part")
+        box.Size = Vector3.new(5, 1, 5)
+        box.Position = targetPart.Position + Vector3.new(0, 3, 0)
+        box.Anchored = true
+        box.Transparency = 1
+        box.Parent = Workspace
+        
+        local chairTemplate = Workspace:FindFirstChild("TrapChair")
+        if not chairTemplate then
+            warn("❌ لم يتم العثور على TrapChair في Workspace!")
+            return
+        end
+        
+        local newChair = chairTemplate:Clone()
+        newChair.Position = box.Position + Vector3.new(0, 5, 0)
+        newChair.Parent = Workspace
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        
+        local trapScript = newChair:FindFirstChild("ChairTrapScript")
+        if trapScript then
+            trapScript.Disabled = false
+        end
+        
+        task.spawn(function()
+            while newChair and newChair.Parent and targetPart and targetPlayer.Character and targetPlayer.Character.Humanoid.Health > 0 do
+                local direction = (targetPart.Position - newChair.Position).Unit
+                bodyVelocity.Velocity = direction * 60
+                bodyVelocity.Parent = newChair
+                task.wait(0.1)
+            end
+            if newChair then newChair:Destroy() end
+            if box then box:Destroy() end
+        end)
+    end
+end
+
+local function spawnMurderChair(targetPlayerName)
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetPart = targetPlayer.Character.HumanoidRootPart
+        local box = Instance.new("Part")
+        box.Size = Vector3.new(5, 1, 5)
+        box.Position = targetPart.Position + Vector3.new(0, 3, 0)
+        box.Anchored = true
+        box.Transparency = 1
+        box.Parent = Workspace
+        
+        local chairTemplate = Workspace:FindFirstChild("MurderChair")
+        if not chairTemplate then
+            warn("❌ لم يتم العثور على MurderChair في Workspace!")
+            return
+        end
+        
+        local newChair = chairTemplate:Clone()
+        newChair.Position = box.Position + Vector3.new(0, 5, 0)
+        newChair.Parent = Workspace
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        
+        local killScript = newChair:FindFirstChild("ChairKillScript")
+        if killScript then
+            killScript.Disabled = false
+        end
+        
+        task.spawn(function()
+            while newChair and newChair.Parent and targetPart and targetPlayer.Character and targetPlayer.Character.Humanoid.Health > 0 do
+                local direction = (targetPart.Position - newChair.Position).Unit
+                bodyVelocity.Velocity = direction * 60
+                bodyVelocity.Parent = newChair
+                task.wait(0.1)
+            end
+            if newChair then newChair:Destroy() end
+            if box then box:Destroy() end
+        end)
+    end
+end
+
+-- =============================================
+-- حذف الواجهة القديمة
+-- =============================================
+local existing = CoreGui:FindFirstChild("🐄 سكربت النعجة 🐗")
+if existing then existing:Destroy() end
+
+local ScreenGui = Create("ScreenGui", CoreGui, {
+  Name = "🐄 سكربت النعجة 🐗",
+  ResetOnSpawn = false,
+  ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+})
+
+function DestroyScript()
+  -- إلغاء جميع الحلقات والتوغلات
+  getgenv().flingloop = false
+  _G.MoneyFarm = false
+  faceSitEnabled = false
+  bangEnabled = false
+  bangTarget = nil
+  spyEnabled = false
+  autoSpyEnabled = false
+  
+  -- إعادة ضبط الكاميرا
+  pcall(function()
+    local camera = workspace.CurrentCamera
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+      camera.CameraSubject = lp.Character.Humanoid
+    end
+  end)
+  
+  -- إعادة ضبط السرعة والقفز
+  pcall(function()
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+      lp.Character.Humanoid.WalkSpeed = 16
+      lp.Character.Humanoid.JumpPower = 50
+    end
+  end)
+  
+  -- حذف الـ GUI
+  ScreenGui:Destroy()
+end
+
+-- =============================================
+-- نظام الإشعارات
+-- =============================================
+local Menu_Notifi = Create("Frame", ScreenGui, {
+  Size = UDim2.new(0, 300, 1, 0),
+  Position = UDim2.new(1, 0, 0, 0),
+  AnchorPoint = Vector2.new(1, 0),
+  BackgroundTransparency = 1
+})
+
+Create("UIPadding", Menu_Notifi, {
+  PaddingLeft = UDim.new(0, 25),
+  PaddingTop = UDim.new(0, 25),
+  PaddingBottom = UDim.new(0, 50)
+})
+
+Create("UIListLayout", Menu_Notifi, {
+  Padding = UDim.new(0, 15),
+  VerticalAlignment = Enum.VerticalAlignment.Bottom
+})
+
+function MakeNotifi(Configs)
+  local Title = Configs.Title or "🐄 سكربت النعجة 🐗"
+  local text = Configs.Text or "Notification"
+  local timewait = Configs.Time or 5
+
+  local Frame1 = Create("Frame", Menu_Notifi, {
+    Size = UDim2.new(2, 0, 0, 0),
+    BackgroundTransparency = 1,
+    AutomaticSize = Enum.AutomaticSize.Y,
+    Name = "Title"
+  })
+
+  local Frame2 = Create("Frame", Frame1, {
+    Size = UDim2.new(0, Menu_Notifi.Size.X.Offset - 50, 0, 0),
+    BackgroundColor3 = Configs_HUB.Cor_Hub,
+    Position = UDim2.new(0, Menu_Notifi.Size.X.Offset, 0, 0),
+    AutomaticSize = Enum.AutomaticSize.Y
+  })
+  Corner(Frame2)
+  Stroke(Frame2)
+
+  local TextLabel1 = Create("TextLabel", Frame2, {
+    Size = UDim2.new(1, -40, 0, 25),
+    Font = Configs_HUB.Text_Font,
+    BackgroundTransparency = 1,
+    Text = Title,
+    TextSize = 18,
+    Position = UDim2.new(0, 15, 0, 5),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextColor3 = Configs_HUB.Cor_Stroke
+  })
+
+  local CloseBtn = Create("TextButton", Frame2, {
+    Text = "×",
+    Font = Configs_HUB.Text_Font,
+    TextSize = 22,
+    BackgroundTransparency = 1,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Position = UDim2.new(1, -5, 0, 5),
+    AnchorPoint = Vector2.new(1, 0),
+    Size = UDim2.new(0, 25, 0, 25)
+  })
+
+  local TextLabel2 = Create("TextLabel", Frame2, {
+    Size = UDim2.new(1, -30, 0, 0),
+    Position = UDim2.new(0, 15, 0, 35),
+    TextSize = 14,
+    TextColor3 = Configs_HUB.Cor_Text,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    AutomaticSize = Enum.AutomaticSize.Y,
+    Text = text,
+    Font = Configs_HUB.Text_Font,
+    BackgroundTransparency = 1,
+    TextWrapped = true
+  })
+
+  local FrameSize = Create("Frame", Frame2, {
+    Size = UDim2.new(1, -4, 0, 2),
+    BackgroundColor3 = Configs_HUB.Cor_Stroke,
+    Position = UDim2.new(0, 2, 0, 30),
+    BorderSizePixel = 0
+  })
+  Corner(FrameSize)
+
+  task.spawn(function()
+    CreateTween(FrameSize, "Size", UDim2.new(0, 0, 0, 2), timewait, true)
+  end)
+
+  CloseBtn.MouseButton1Click:Connect(function()
+    CreateTween(Frame2, "Position", UDim2.new(0, -20, 0, 0), 0.1, true)
+    CreateTween(Frame2, "Position", UDim2.new(0, Menu_Notifi.Size.X.Offset, 0, 0), 0.5, true)
+    Frame1:Destroy()
+  end)
+
+  task.spawn(function()
+    CreateTween(Frame2, "Position", UDim2.new(0, -20, 0, 0), 0.5, true)
+    CreateTween(Frame2, "Position", UDim2.new(), 0.1, true)
+    task.wait(timewait)
+    if Frame2 and Frame2.Parent then
+      CreateTween(Frame2, "Position", UDim2.new(0, -20, 0, 0), 0.1, true)
+      CreateTween(Frame2, "Position", UDim2.new(0, Menu_Notifi.Size.X.Offset, 0, 0), 0.5, true)
+      Frame1:Destroy()
+    end
+  end)
+end
+-- ═══════════════════════════════════════════════════════
+-- 🐄 سكربت النعجة 🐗 - الجزء 2 من 8
+-- ═══════════════════════════════════════════════════════
+
+function MakeWindow(Configs)
+  local title = Configs.Hub.Title or "🐄 سكربت النعجة 🐗"
+  local Anim_Title = Configs.Hub.Animation or "by : المطور"
+
+  local Menu = Create("Frame", ScreenGui, {
+    BackgroundColor3 = Configs_HUB.Cor_Hub,
+    Position = UDim2.new(0.5, -500/2, 0.5, -270/2),
+    Active = true,
+    Draggable = true,
+    Size = UDim2.new(0, 500, 0, 0)
+  })
+  Corner(Menu)
+  Stroke(Menu)
+
+  local HubBGImage = Create("ImageLabel", Menu, {
+    Name = "HubBackground",
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    Image = IMAGE_BG,
+    ImageTransparency = 0.3,
+    ScaleType = Enum.ScaleType.Crop,
+    ZIndex = 0
+  })
+  Corner(HubBGImage)
+
+  local TopBar = Create("Frame", Menu, {
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 0, 25),
+    Visible = false,
+    ZIndex = 2
+  })
+
+  local RotatingImage = Create("ImageLabel", TopBar, {
+    Name = "RotatingLogo",
+    Size = UDim2.new(0, 20, 0, 20),
+    Position = UDim2.new(0, 2, 0.5, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    Image = IMAGE_ICON,
+    ZIndex = 3
+  })
+  Corner(RotatingImage, {CornerRadius = UDim.new(1, 0)})
+
+  task.spawn(function()
+    local rotation = 0
+    while RotatingImage and RotatingImage.Parent do
+      rotation = (rotation + 1) % 360
+      RotatingImage.Rotation = rotation
+      task.wait(0.016)
+    end
+  end)
+
+  local TitleText = Create("TextLabel", TopBar, {
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.new(0, 25, 0, 0),
+    TextColor3 = Configs_HUB.Cor_Text,
+    Font = Configs_HUB.Text_Font,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Text = title,
+    TextSize = 20,
+    BackgroundTransparency = 1
+  })
+
+  local ButtonsFrame = Create("Frame", TopBar, {
+    Size = UDim2.new(0, 40, 1, -5),
+    Position = UDim2.new(1, -10, 0, 2.5),
+    AnchorPoint = Vector2.new(1, 0),
+    BackgroundTransparency = 1
+  })
+
+  local Minimize_BTN = Create("TextButton", ButtonsFrame, {
+    Text = "-",
+    TextColor3 = Configs_HUB.Cor_Text,
+    Size = UDim2.new(0.5, 0, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Configs_HUB.Text_Font,
+    TextYAlignment = Enum.TextYAlignment.Bottom,
+    TextSize = 25
+  })
+
+  local IsMinimized = false
+  Minimize_BTN.MouseButton1Click:Connect(function()
+    IsMinimized = not IsMinimized
+    Minimize_BTN.Text = IsMinimized and "+" or "-"
+    local targetHeight = IsMinimized and 35 or 270
+    CreateTween(Menu, "Size", UDim2.new(0, 500, 0, targetHeight), 0.15, false)
+  end)
+
+  local Close_Button = Create("TextButton", ButtonsFrame, {
+    Text = "×",
+    TextYAlignment = Enum.TextYAlignment.Bottom,
+    TextColor3 = Configs_HUB.Cor_Text,
+    Size = UDim2.new(0.5, 0, 1, 0),
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, 0, 0, 0),
+    BackgroundTransparency = 1,
+    Font = Configs_HUB.Text_Font,
+    TextSize = 25
+  })
+
+  local function CreateClose()
+    IsMinimized = false
+    Minimize_BTN.Text = "-"
+    CreateTween(Menu, "Size", UDim2.new(0, 500, 0, 270), 0.3, false)
+    local CloseGui = Create("TextButton", Menu, {
+      BackgroundColor3 = Configs_HUB.Cor_Hub,
+      Size = UDim2.new(1, 0, 1, 0),
+      AutoButtonColor = false,
+      Text = "",
+      BackgroundTransparency = 0.5,
+      Visible = false,
+      ZIndex = 5
+    })
+    Corner(CloseGui)
+
+    local CloseMenu = Create("Frame", CloseGui, {
+      Size = UDim2.new(),
+      AnchorPoint = Vector2.new(0.5, 0.5),
+      Position = UDim2.new(0.5, 0, 0.5, 0),
+      BackgroundTransparency = 1,
+      BackgroundColor3 = Configs_HUB.Cor_Hub
+    })
+    Corner(CloseMenu)
+    Stroke(CloseMenu)
+
+    Create("TextLabel", CloseMenu, {
+      Size = UDim2.new(0.8, 0, 0.25, 0),
+      Text = "هل أنت متأكد من إغلاق السكربت؟",
+      Position = UDim2.new(0.1, 0, 0.2, 0),
+      TextColor3 = Configs_HUB.Cor_Text,
+      Font = Configs_HUB.Text_Font,
+      TextScaled = true,
+      BackgroundTransparency = 1
+    })
+
+    local Confirm = Create("TextButton", CloseMenu, {
+      Size = UDim2.new(0.35, 0, 0.3, 0),
+      Position = UDim2.new(0.1, 0, 0.5, 0),
+      BackgroundColor3 = Configs_HUB.Cor_Hub,
+      Text = "إغلاق",
+      Font = Configs_HUB.Text_Font,
+      TextColor3 = Color3.fromRGB(255, 255, 255),
+      TextSize = 20
+    })
+    Corner(Confirm)
+    Stroke(Confirm)
+
+    local Cancel = Create("TextButton", CloseMenu, {
+      Size = UDim2.new(0.35, 0, 0.3, 0),
+      Position = UDim2.new(0.9, 0, 0.5, 0),
+      AnchorPoint = Vector2.new(1, 0),
+      BackgroundColor3 = Configs_HUB.Cor_Hub,
+      Text = "إلغاء",
+      Font = Configs_HUB.Text_Font,
+      TextColor3 = Configs_HUB.Cor_DarkText,
+      TextSize = 20
+    })
+    Corner(Cancel)
+    Stroke(Cancel)
+
+    local function SetVisible()
+      CloseGui.Visible = Menu.Size.Y.Offset > 100
+    end
+    SetVisible()
+    Menu:GetPropertyChangedSignal("Size"):Connect(SetVisible)
+
+    CreateTween(CloseMenu, "BackgroundTransparency", 0, 0.2, false)
+    CreateTween(CloseMenu, "Size", UDim2.new(0.7, 0, 0.7, 0), 0.2, false)
+
+    Cancel.MouseButton1Click:Connect(function()
+      CloseGui:Destroy()
+    end)
+
+    Confirm.MouseButton1Click:Connect(function()
+      CloseGui:Destroy()
+      DestroyScript()
+    end)
+  end
+
+  Close_Button.MouseButton1Click:Connect(CreateClose)
+
+  local AnimMenu = Create("Frame", ScreenGui, {
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = Configs_HUB.Cor_Hub,
+    Size = UDim2.new(0, 0, 0, 0)
+  })
+  Corner(AnimMenu, {CornerRadius = UDim.new(0, 6)})
+
+  local Anim_Credits = Create("TextLabel", AnimMenu, {
+    Text = Anim_Title,
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 1, 0),
+    Visible = false,
+    Font = Configs_HUB.Text_Font,
+    TextTransparency = 1,
+    TextColor3 = Configs_HUB.Cor_Text,
+    Position = UDim2.new(0, 10, 0, 0),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextSize = 15
+  })
+
+  CreateTween(AnimMenu, "Size", UDim2.new(0, 0, 0, 35), 0.5, true)
+  CreateTween(AnimMenu, "Size", UDim2.new(0, 150, 0, 35), 0.5, true)
+  Anim_Credits.Visible = true
+  task.wait(0.5)
+  for i = 1, 0, -0.1 do task.wait(); Anim_Credits.TextTransparency = i end
+  task.wait(1)
+  for i = 0, 1, 0.1 do task.wait(); Anim_Credits.TextTransparency = i end
+  Anim_Credits:Destroy()
+  AnimMenu:Destroy()
+  CreateTween(Menu, "Size", UDim2.new(0, 500, 0, 35), 0.5, true)
+  TopBar.Visible = true
+  CreateTween(Menu, "Size", UDim2.new(0, 500, 0, 270), 0.3, true)
+
+  local line_Containers = Create("Frame", Menu, {
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 1, 0),
+    ZIndex = 2
+  })
+
+  local ScrollBar = Create("ScrollingFrame", Menu, {
+    Size = UDim2.new(0, 140, 1, -(TopBar.Size.Y.Offset + 2)),
+    Position = UDim2.new(0, 0, 1, 0),
+    AnchorPoint = Vector2.new(0, 1),
+    CanvasSize = UDim2.new(),
+    ScrollingDirection = Enum.ScrollingDirection.Y,
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    BackgroundTransparency = 1,
+    ScrollBarThickness = 2,
+    ZIndex = 2
+  })
+  Create("UIPadding", ScrollBar, {
+    PaddingLeft = UDim.new(0, 10),
+    PaddingRight = UDim.new(0, 10),
+    PaddingTop = UDim.new(0, 10),
+    PaddingBottom = UDim.new(0, 10)
+  })
+  Create("UIListLayout", ScrollBar, {
+    Padding = UDim.new(0, 5)
+  })
+
+  local Containers = Create("Frame", Menu, {
+    Size = UDim2.new(1, -(ScrollBar.Size.X.Offset + 2), 1, -(TopBar.Size.Y.Offset + 2)),
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    ZIndex = 2
+  })
+  Corner(Containers)
+
+  local function Add_Line(props)
+    local line = Create("Frame", line_Containers, props)
+    line.BackgroundColor3 = Configs_HUB.Cor_Stroke
+    line.BorderSizePixel = 0
+  end
+
+  Add_Line({Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, TopBar.Size.Y.Offset)})
+  Add_Line({Size = UDim2.new(0, 1, 1, -(TopBar.Size.Y.Offset + 1)), Position = UDim2.new(0, ScrollBar.Size.X.Offset, 0, TopBar.Size.Y.Offset)})
+
+  local firstVisible = true
+  local textsize = 15
+  local textcolor = Configs_HUB.Cor_Text
+
+  Menu:GetPropertyChangedSignal("Size"):Connect(function()
+    local visible = Menu.Size.Y.Offset > 70
+    ScrollBar.Visible = visible
+    Containers.Visible = visible
+    line_Containers.Visible = visible
+  end)
+
+  function MakeTab(Configs)
+    local TabName = Configs.Name or "تاب"
+    local TabTitle = Configs.TabTitle or false
+    local TabImage = Configs.Image or nil
+
+    local Frame = Create("Frame", ScrollBar, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundTransparency = 1
+    })
+    Corner(Frame)
+    Stroke(Frame)
+
+    local TextButton = Create("TextButton", Frame, {
+      Size = UDim2.new(1, 0, 1, 0),
+      BackgroundTransparency = 1,
+      Text = ""
+    })
+
+    if TabImage then
+      Create("ImageLabel", Frame, {
+        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(0, 5, 0.5, -10),
+        BackgroundTransparency = 1,
+        Image = IMAGE_ICON,
+        Name = "TabIcon"
+      })
+    end
+
+    local textOffset = TabImage and 30 or 5
+
+    local TextLabel = Create("TextLabel", Frame, {
+      Size = UDim2.new(1, -textOffset, 1, 0),
+      Position = UDim2.new(0, textOffset, 0, 0),
+      BackgroundTransparency = 1,
+      Font = Configs_HUB.Text_Font,
+      TextColor3 = textcolor,
+      TextSize = textsize,
+      Text = TabName,
+      TextXAlignment = Enum.TextXAlignment.Left
+    })
+
+    local Container = Create("ScrollingFrame", Containers, {
+      Size = UDim2.new(1, 0, 1, 0),
+      ScrollingDirection = Enum.ScrollingDirection.Y,
+      AutomaticCanvasSize = Enum.AutomaticSize.Y,
+      CanvasSize = UDim2.new(),
+      BackgroundTransparency = 1,
+      ScrollBarThickness = 2,
+      Visible = firstVisible
+    })
+
+    Create("UIPadding", Container, {
+      PaddingLeft = UDim.new(0, 10),
+      PaddingRight = UDim.new(0, 10),
+      PaddingTop = UDim.new(0, 10),
+      PaddingBottom = UDim.new(0, 10)
+    })
+
+    Create("UIListLayout", Container, {
+      Padding = UDim.new(0, 5)
+    })
+
+    if TabTitle then
+      Create("TextLabel", Container, {
+        BackgroundTransparency = 1,
+        Text = "#" .. string.gsub(TabName, " ", "-"),
+        TextSize = 25,
+        Font = Configs_HUB.Text_Font,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextColor3 = Configs_HUB.Cor_Accent,
+        Size = UDim2.new(1, 0, 0, 30),
+        Name = "Frame"
+      })
+    end
+
+    TextButton.MouseButton1Click:Connect(function()
+      ClickSound:Play()
+      for _, container in pairs(Containers:GetChildren()) do
+        if container:IsA("ScrollingFrame") then
+          container.Visible = false
+        end
+      end
+      for _, frame in pairs(ScrollBar:GetChildren()) do
+        if frame:IsA("Frame") then
+          local lbl = frame:FindFirstChildOfClass("TextLabel")
+          if lbl and lbl ~= TextLabel then
+            CreateTween(lbl, "TextColor3", Configs_HUB.Cor_DarkText, 0.3, false)
+            lbl.TextSize = 14
+          end
+        end
+      end
+      Container.Visible = true
+      CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.3, false)
+      TextLabel.TextSize = 15
+    end)
+
+    firstVisible = false
+    textsize = 14
+    textcolor = Configs_HUB.Cor_DarkText
+
+    return Container
+  end
+-- ═══════════════════════════════════════════════════════
+-- 🐄 سكربت النعجة 🐗 - الجزء 3 من 8
+-- ═══════════════════════════════════════════════════════
+
+  function AddButton(parent, Configs)
+    local ButtonName = Configs.Name or "زر!!"
+    local Callback = Configs.Callback or function() end
+
+    local TextButton = Create("TextButton", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Options,
+      Name = "Frame",
+      Text = "",
+      AutoButtonColor = false
+    })
+    Corner(TextButton)
+    Stroke(TextButton)
+
+    local ImageLabel = Create("ImageLabel", TextButton, {
+      Image = IMAGE_ICON,
+      Size = UDim2.new(0, 20, 0, 20),
+      Position = UDim2.new(0, 5, 0, 2.5),
+      BackgroundTransparency = 1,
+      ImageColor3 = Configs_HUB.Cor_Accent
+    })
+
+    local TextLabel = Create("TextLabel", TextButton, {
+      TextSize = 12,
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = ButtonName,
+      Size = UDim2.new(1, 0, 1, 0),
+      Position = UDim2.new(0, 35, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+
+    TextButton.MouseButton1Click:Connect(function()
+      Callback()
+      CreateTween(ImageLabel, "ImageColor3", Color3.fromRGB(255, 215, 0), 0.2, true)
+      CreateTween(ImageLabel, "ImageColor3", Configs_HUB.Cor_Accent, 0.2, false)
+    end)
+
+    TextSetColor(TextLabel)
+  end
+
+  function AddToggle(parent, Configs)
+    local ToggleName = Configs.Name or "تبديل!!"
+    local Default = Configs.Default or false
+    local Callback = Configs.Callback or function() end
+    local toggleKey = ToggleName
+
+    local TextButton = Create("TextButton", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Options,
+      Name = "Frame",
+      Text = "",
+      AutoButtonColor = false
+    })
+    Corner(TextButton)
+    Stroke(TextButton)
+
+    local ImageLabel = Create("ImageLabel", TextButton, {
+      Image = IMAGE_ICON,
+      Size = UDim2.new(0, 20, 0, 20),
+      Position = UDim2.new(0, 5, 0, 2.5),
+      BackgroundTransparency = 1,
+      ImageColor3 = Configs_HUB.Cor_Accent
+    })
+
+    local TextLabel = Create("TextLabel", TextButton, {
+      TextSize = 12,
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = ToggleName,
+      Size = UDim2.new(1, 0, 1, 0),
+      Position = UDim2.new(0, 35, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+
+    local Frame1 = Create("Frame", TextButton, {
+      Size = UDim2.new(0, 25, 0, 15),
+      Position = UDim2.new(0, 5, 0, 5),
+      BackgroundTransparency = 1,
+    })
+    Corner(Frame1, {CornerRadius = UDim.new(1, 0)})
+    local ToggleStroke = Stroke(Frame1, {Thickness = 2})
+
+    local Frame2 = Create("Frame", Frame1, {
+      Size = UDim2.new(0, 13, 0, 13),
+      Position = UDim2.new(0, 2, 0.5, 0),
+      AnchorPoint = Vector2.new(0, 0.5),
+      BackgroundColor3 = Configs_HUB.Cor_Stroke
+    })
+    Corner(Frame2, {CornerRadius = UDim.new(1, 0)})
+
+    local OnOff = false
+    -- استرجاع الحالة المحفوظة
+    if toggleStates[toggleKey] ~= nil then
+      OnOff = toggleStates[toggleKey]
+    else
+      OnOff = Default
+      toggleStates[toggleKey] = Default
+    end
+    
+    if OnOff then
+      CreateTween(Frame2, "Position", UDim2.new(0, 10, 0.5, 0), 0.2, false)
+      CreateTween(Frame2, "BackgroundColor3", Configs_HUB.Cor_Stroke, 0.2, false)
+      CreateTween(ToggleStroke, "Color", Configs_HUB.Cor_Stroke, 0.2, false)
+      CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.2, false)
+    end
+    Callback(OnOff)
+
+    TextButton.MouseButton1Click:Connect(function()
+      if Frame2.Position.X.Offset < 5 then
+        OnOff = true
+        CreateTween(Frame2, "Position", UDim2.new(0, 10, 0.5, 0), 0.2, false)
+        CreateTween(Frame2, "BackgroundColor3", Configs_HUB.Cor_Stroke, 0.2, false)
+        CreateTween(ToggleStroke, "Color", Configs_HUB.Cor_Stroke, 0.2, false)
+        CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.2, false)
+        toggleStates[toggleKey] = true
+        Callback(true)
+      else
+        OnOff = false
+        CreateTween(Frame2, "Position", UDim2.new(0, 2, 0.5, 0), 0.2, false)
+        CreateTween(Frame2, "BackgroundColor3", Configs_HUB.Cor_Stroke, 0.2, false)
+        CreateTween(ToggleStroke, "Color", Configs_HUB.Cor_Stroke, 0.2, false)
+        CreateTween(TextLabel, "TextColor3", Configs_HUB.Cor_Text, 0.2, false)
+        toggleStates[toggleKey] = false
+        Callback(false)
+      end
+    end)
+  end
+
+  function AddSlider(parent, Configs)
+    local SliderName = Configs.Name or "شريط!!"
+    local Increase = Configs.Increase or 1
+    local MinValue = Configs.MinValue / Increase or 10 / Increase
+    local MaxValue = Configs.MaxValue / Increase or 100 / Increase
+    local Default = Configs.Default or 25
+    local Callback = Configs.Callback or function() end
+    local sliderKey = SliderName
+
+    local Frame = Create("TextButton", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Options,
+      Name = "Frame",
+      Text = ""
+    })
+    Corner(Frame)
+    Stroke(Frame)
+
+    local TextLabel = Create("TextButton", Frame, {
+      TextSize = 12,
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = SliderName,
+      Size = UDim2.new(1, 0, 1, 0),
+      Position = UDim2.new(0, 150, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+    TextSetColor(TextLabel)
+
+    local TextLabelNumber = Create("TextLabel", Frame, {
+      Font = Configs_HUB.Text_Font,
+      Size = UDim2.new(0, 20, 0, 20),
+      Text = "...",
+      Position = UDim2.new(0, 5, 0, 2.5),
+      TextScaled = true,
+      TextColor3 = Configs_HUB.Cor_Text,
+      BackgroundTransparency = 1
+    })
+
+    local SliderBar1 = Create("TextLabel", Frame, {
+      Size = UDim2.new(0, 100, 0, 7.5),
+      Position = UDim2.new(0, 35, 0.5, 0),
+      AnchorPoint = Vector2.new(0, 0.5),
+      BackgroundColor3 = Configs_HUB.Cor_Stroke,
+      Text = ""
+    })
+    Corner(SliderBar1)
+
+    local SavePos = Create("Frame", SliderBar1, {
+      Size = UDim2.new(0, 1, 0, 0),
+      Visible = false
+    })
+
+    local Slider = Create("Frame", SliderBar1, {
+      BackgroundColor3 = Configs_HUB.Cor_Text,
+      Size = UDim2.new(0, 7.5, 0, 15),
+      Position = UDim2.new(0, 0, 0.5, 0),
+      AnchorPoint = Vector2.new(0, 0.5),
+      Active = true,
+      Draggable = true
+    })
+    Corner(Slider)
+
+    local SliderBar2 = Create("Frame", SliderBar1, {
+      BackgroundColor3 = Configs_HUB.Cor_Stroke,
+      Size = UDim2.new(0, Slider.Position.X.Offset, 1, 0)
+    })
+    Corner(SliderBar2)
+
+    local function UpdCounter(Value)
+      local String = tostring(Value * Increase)
+      if string.find(String, ".") then
+        String = String:sub(1, 5)
+      end
+      TextLabelNumber.Text = String
+      sliderValues[sliderKey] = Value * Increase
+      Callback(Value * Increase)
+    end
+
+    local MouseEnterOrLeave = false
+    Frame.MouseButton1Down:Connect(function()
+      MouseEnterOrLeave = true
+      while MouseEnterOrLeave do
+        task.wait()
+        local MousePos = UserInputService:GetMouseLocation().X - SavePos.AbsolutePosition.X
+        Slider.Position = UDim2.new(0, MousePos, 0.5, 0)
+      end
+    end)
+    Frame.MouseLeave:Connect(function()
+      MouseEnterOrLeave = false
+    end)
+
+    local function SliderSet(NewValue)
+      local max, min = MaxValue * Increase, MinValue * Increase
+      local SliderPos = (NewValue - min) / (max - min)
+      local X_Offset = SliderPos * 100
+      CreateTween(Slider, "Position", UDim2.new(0, X_Offset + 1, 0, 0), 0.5, false)
+    end
+    
+    -- استرجاع القيمة المحفوظة أو استخدام القيمة الافتراضية
+    local savedValue = sliderValues[sliderKey]
+    if savedValue then
+      SliderSet(savedValue)
+      UpdCounter(savedValue / Increase)
+    else
+      SliderSet(Default)
+      UpdCounter(Default / Increase)
+    end
+
+    Slider.Changed:Connect(function(prop)
+      if prop == "Position" then
+        Slider.Position = UDim2.new(0, math.clamp(Slider.Position.X.Offset, 0, 100), 0.5, 0)
+        SliderBar2.Size = UDim2.new(0, Slider.Position.X.Offset, 1, 0)
+        local SliderPos = Slider.Position.X.Offset / 100
+        local A_1 = math.floor(((SliderPos * MaxValue) / MaxValue) * (MaxValue - MinValue) + MinValue)
+        UpdCounter(A_1)
+      end
+    end)
+  end
+
+  function AddDropdown(parent, Configs)
+    local DropdownName = Configs.Name or "قائمة!!"
+    local Options = Configs.Options or {"1", "2", "3"}
+    local Default = Configs.Default or Options[1]
+    local Callback = Configs.Callback or function() end
+    local dropdownKey = DropdownName
+
+    local TextButton = Create("TextButton", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Options,
+      Name = "Frame",
+      Text = "",
+      AutoButtonColor = false
+    })
+    Corner(TextButton)
+    Stroke(TextButton)
+
+    local TextLabel = Create("TextLabel", TextButton, {
+      TextSize = 12,
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = DropdownName,
+      Size = UDim2.new(1, 0, 0, 25),
+      Position = UDim2.new(0, 35, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+    TextSetColor(TextLabel)
+
+    local Arrow = Create("ImageLabel", TextButton, {
+      Image = "rbxassetid://6031090990",
+      Size = UDim2.new(0, 25, 0, 25),
+      Position = UDim2.new(0, 5, 0, 0),
+      BackgroundTransparency = 1,
+      ImageColor3 = Configs_HUB.Cor_Stroke
+    })
+
+    local DefaultText = Create("TextLabel", TextButton, {
+      BackgroundColor3 = Configs_HUB.Cor_Hub,
+      BackgroundTransparency = 0.1,
+      Position = UDim2.new(1, -20, 0, 2.5),
+      AnchorPoint = Vector2.new(1, 0),
+      Size = UDim2.new(0, 100, 0, 20),
+      TextColor3 = Configs_HUB.Cor_DarkText,
+      TextScaled = true,
+      Font = Configs_HUB.Text_Font,
+      Text = "..."
+    })
+    Corner(DefaultText)
+    Stroke(DefaultText)
+
+    local Line = Create("Frame", TextButton, {
+      Size = UDim2.new(1, 0, 0, 1),
+      Position = UDim2.new(0, 0, 0, 25),
+      BorderSizePixel = 0,
+      BackgroundColor3 = Configs_HUB.Cor_Stroke,
+      Visible = false
+    })
+
+    local DropScroll = Create("ScrollingFrame", TextButton, {
+      Size = UDim2.new(1, 0, 1, -25),
+      Position = UDim2.new(0, 0, 0, 25),
+      CanvasSize = UDim2.new(),
+      ScrollingDirection = Enum.ScrollingDirection.Y,
+      AutomaticCanvasSize = Enum.AutomaticSize.Y,
+      BackgroundTransparency = 1,
+      ScrollBarThickness = 2
+    })
+    Create("UIPadding", DropScroll, {
+      PaddingLeft = UDim.new(0, 10),
+      PaddingRight = UDim.new(0, 10),
+      PaddingTop = UDim.new(0, 10),
+      PaddingBottom = UDim.new(0, 10)
+    })
+    Create("UIListLayout", DropScroll, {Padding = UDim.new(0, 5)})
+
+    local function AddOption(OptionName)
+      local Opt = Create("TextButton", DropScroll, {
+        Size = UDim2.new(1, 0, 0, 15),
+        Text = OptionName,
+        Font = Configs_HUB.Text_Font,
+        TextSize = 12,
+        TextColor3 = Color3.fromRGB(200, 150, 150),
+        BackgroundTransparency = 1
+      })
+      Corner(Opt)
+
+      -- استرجاع التحديد المحفوظ
+      local savedSelection = dropdownSelections[dropdownKey]
+      local selectedOption = savedSelection or Default
+      
+      if OptionName == selectedOption then
+        Opt.BackgroundTransparency = 0.8
+        Opt.TextColor3 = Configs_HUB.Cor_Text
+        DefaultText.Text = OptionName
+        dropdownSelections[dropdownKey] = OptionName
+        Callback(OptionName)
+      end
+
+      Opt.MouseButton1Click:Connect(function()
+        for _, v in pairs(DropScroll:GetChildren()) do
+          if v:IsA("TextButton") then
+            v.BackgroundTransparency = 1
+            v.TextColor3 = Color3.fromRGB(200, 150, 150)
+          end
+        end
+        DefaultText.Text = OptionName
+        dropdownSelections[dropdownKey] = OptionName
+        Callback(OptionName)
+        Opt.BackgroundTransparency = 0.8
+        Opt.TextColor3 = Configs_HUB.Cor_Text
+      end)
+    end
+
+    for _, v in pairs(Options) do AddOption(v) end
+
+    local DropOnOff = false
+    TextButton.MouseButton1Click:Connect(function()
+      local OptionSize, OptionsNumber = 25, 0
+      for _, v in pairs(DropScroll:GetChildren()) do
+        if v:IsA("TextButton") and OptionsNumber < 5 then
+          OptionsNumber += 1
+          OptionSize += v.Size.Y.Offset + 10
+        end
+      end
+      if not DropOnOff then
+        CreateTween(TextButton, "Size", UDim2.new(1, 0, 0, OptionSize), 0.3, false)
+        CreateTween(Arrow, "Rotation", 180, 0.3, false)
+        DropOnOff = true
+        Line.Visible = true
+      else
+        CreateTween(TextButton, "Size", UDim2.new(1, 0, 0, 25), 0.3, false)
+        CreateTween(Arrow, "Rotation", 0, 0.3, true)
+        DropOnOff = false
+        Line.Visible = false
+      end
+    end)
+    return {DropScroll, Default, Callback, DefaultText}
+  end
+
+  function AddSection(parent, Configs)
+    local SectionName = Configs[1] or Configs.Name or "قسم!!"
+
+    local Frame = Create("Frame", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Hub,
+      Name = "Frame",
+      BackgroundTransparency = 1
+    })
+    Corner(Frame)
+
+    local ImageLabel = Create("ImageLabel", Frame, {
+      Image = IMAGE_ICON,
+      Size = UDim2.new(0, 20, 0, 20),
+      Position = UDim2.new(0, 5, 0, 2.5),
+      BackgroundTransparency = 1,
+      ImageColor3 = Configs_HUB.Cor_Accent
+    })
+
+    local TextButton = Create("TextButton", Frame, {
+      TextSize = 13,
+      TextColor3 = Configs_HUB.Cor_Accent,
+      Text = SectionName,
+      Size = UDim2.new(1, 0, 0, 25),
+      Position = UDim2.new(0, 35, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+    return TextButton
+  end
+
+  function AddTextBox(parent, Configs)
+    local TextBoxName = Configs.Name or "مربع نص!!"
+    local Default = Configs.Default or ""
+    local placeholderText = Configs.PlaceholderText or "اكتب هنا..."
+    local ClearText = Configs.ClearText or false
+    local Callback = Configs.Callback or function() end
+
+    local Frame = Create("Frame", parent, {
+      Size = UDim2.new(1, 0, 0, 25),
+      BackgroundColor3 = Configs_HUB.Cor_Options,
+      Name = "Frame"
+    })
+    Corner(Frame)
+    Stroke(Frame)
+
+    local TextLabel = Create("TextButton", Frame, {
+      TextSize = 12,
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = TextBoxName,
+      Size = UDim2.new(1, 0, 1, 0),
+      Position = UDim2.new(0, 150, 0, 0),
+      BackgroundTransparency = 1,
+      TextXAlignment = Enum.TextXAlignment.Left,
+      Font = Configs_HUB.Text_Font
+    })
+    TextSetColor(TextLabel)
+
+    local TextBox = Create("TextBox", Frame, {
+      Size = UDim2.new(0, 120, 0, 20),
+      Position = UDim2.new(0, 15, 0, 2.5),
+      TextColor3 = Configs_HUB.Cor_Text,
+      Text = Default,
+      ClearTextOnFocus = ClearText,
+      PlaceholderText = placeholderText,
+      TextScaled = true,
+      Font = Configs_HUB.Text_Font,
+      BackgroundTransparency = 1
+    })
+
+    local Line = Create("Frame", TextBox, {
+      Size = UDim2.new(1, 0, 0, 1),
+      Position = UDim2.new(0.5, 0, 1, 0),
+      AnchorPoint = Vector2.new(0.5, 0.5),
+      BackgroundColor3 = Configs_HUB.Cor_Stroke,
+      BorderSizePixel = 0
+    })
+
+    TextBox.MouseEnter:Connect(function()
+      CreateTween(Line, "Size", UDim2.new(1, 0, 0, 1), 0.3, true)
+    end)
+    TextBox.MouseLeave:Connect(function()
+      CreateTween(Line, "Size", UDim2.new(0, 0, 0, 1), 0.3, true)
+    end)
+
+    TextBox.FocusLost:Connect(function()
+      Callback(TextBox.Text)
+    end)
+  end
+
+  return Menu
+end
+
+local Window = MakeWindow({
+    Hub = {
+        Title = "🐄 سكربت النعجة 🐗",
+        Animation = "by : المطور"
+    }
+})
+-- ═══════════════════════════════════════════════════════
+-- 🐄 سكربت النعجة 🐗 - الجزء 4 من 8
+-- ═══════════════════════════════════════════════════════
+
+-- =============================================
+-- 1️⃣ تبويب المتعة
+-- =============================================
+local TabFun = MakeTab({Name = "🎮 المتعة", TabTitle = true})
+
+AddTextBox(TabFun, {
+    Name = "👤 اسم الضحية",
+    PlaceholderText = "اكتب اسم اللاعب...",
+    Callback = function(text)
+        local searchText = text:lower()
+        if #searchText >= 1 then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Name:lower():find(searchText) and p ~= lp then
+                    foundPlayer = p
+                    MakeNotifi({Title = "🐄 سكربت النعجة 🐗", Text = "✅ تم تحديد: " .. p.Name, Time = 3})
+                    return
+                end
+            end
+        end
+        foundPlayer = nil
+    end
+})
+
+AddToggle(TabFun, {
+    Name = "🍼 مص",
+    Default = false,
+    Callback = function(value)
+        if value and not foundPlayer then
+            MakeNotifi({Title = "❌ خطأ", Text = "اختر هدفاً أولاً!", Time = 3})
+            return
+        end
+        faceSitEnabled = value
+        if value then
+            bangEnabled = false
+            bangTarget = foundPlayer
+        else
+            bangTarget = nil
+            resetVel()
+        end
+    end
+})
+
+AddToggle(TabFun, {
+    Name = "🔥 اغتصاب",
+    Default = false,
+    Callback = function(value)
+        if value and not foundPlayer then
+            MakeNotifi({Title = "❌ خطأ", Text = "اختر هدفاً أولاً!", Time = 3})
+            return
+        end
+        bangEnabled = value
+        if value then
+            faceSitEnabled = false
+            bangTarget = foundPlayer
+        else
+            bangTarget = nil
+            resetVel()
+        end
+    end
+})
+
+AddButton(TabFun, {
+    Name = "⏹ إيقاف الكل",
+    Callback = function()
+        faceSitEnabled = false
+        bangEnabled = false
+        bangTarget = nil
+        resetVel()
+        MakeNotifi({Title = "🐄 سكربت النعجة 🐗", Text = "✅ تم إيقاف جميع المميزات", Time = 3})
+    end
+})
+
+AddSection(TabFun, {Name = "🔥 سبامات"})
+
+AddToggle(TabFun, {
+    Name = "🎭 سبام الوجوه",
+    Default = false,
+    Callback = function(value)
+        while value do
+            task.wait(0.1)
+            pcall(function()
+                local faces = {12350577728, 12357100527, 12350555556, 6093230191, 12357130223}
+                for _, face in ipairs(faces) do
+                    local args = {[1] = face}
+                    ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("Wear"):InvokeServer(unpack(args))
+                end
+            end)
+        end
+    end
+})
+
+AddToggle(TabFun, {
+    Name = "🎨 سبام الألوان",
+    Default = false,
+    Callback = function(value)
+        while value do
+            task.wait(0.1)
+            pcall(function()
+                local colors = {"Medium stone grey", "Fossil", "Flint", "Cloudy grey", "Mid gray"}
+                for _, color in ipairs(colors) do
+                    local args = {[1] = color}
+                    ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("ChangeBodyColor"):FireServer(unpack(args))
+                end
+            end)
+        end
+    end
+})
+
+-- =============================================
+-- 2️⃣ تبويب الفلنق
+-- =============================================
+local TabFling = MakeTab({Name = "🌀 الفلنق", TabTitle = true})
+
+AddButton(TabFling, {
+    Name = "🛋 أخذ الكنبة",
+    Callback = function()
+        pcall(function()
+            local args = {[1] = "PickingTools", [2] = "Couch"}
+            ReplicatedStorage.RE:FindFirstChild("1Too1l"):InvokeServer(unpack(args))
+        end)
+        MakeNotifi({Title = "🌀 الفلنق", Text = "✅ تم أخذ الكنبة!", Time = 3})
+    end
+})
+
+AddTextBox(TabFling, {
+    Name = "👤 اسم الضحية",
+    PlaceholderText = "اكتب اسم اللاعب...",
+    Callback = function(text)
+        local searchText = text:lower()
+        if #searchText >= 1 then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Name:lower():find(searchText) and p ~= lp then
+                    selectedFlingPlayer = p
+                    MakeNotifi({Title = "🌀 الفلنق", Text = "✅ تم تحديد: " .. p.Name, Time = 3})
+                    return
+                end
+            end
+        end
+        selectedFlingPlayer = nil
+    end
+})
+
+AddToggle(TabFling, {
+    Name = "💀 قتل اللاعب بالكنبة",
+    Default = false,
+    Callback = function(state)
+        if state then
+            if not selectedFlingPlayer then
+                MakeNotifi({Title = "❌ خطأ", Text = "اختر لاعب أولاً!", Time = 3})
+                return
+            end
+            getgenv().flingloop = true
+            task.spawn(function()
+                while getgenv().flingloop do
+                    pcall(function()
+                        local target = selectedFlingPlayer
+                        if not target or not target.Character then return end
+                        local char = lp.Character
+                        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+                        local rootPart = humanoid and humanoid.RootPart
+                        local tChar = target.Character
+                        local tHumanoid = tChar:FindFirstChildOfClass("Humanoid")
+                        local tRoot = tHumanoid and tHumanoid.RootPart
+                        if not rootPart or not tRoot then return end
+                        workspace.FallenPartsDestroyHeight = 0/0
+                        local BV = Instance.new("BodyVelocity")
+                        BV.Name = "SpeedDoPai"
+                        BV.Parent = rootPart
+                        BV.Velocity = Vector3.new(9e8, 9e8, 9e8)
+                        BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+                        humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+                        local angle = 0
+                        repeat
+                            angle = angle + 100
+                            rootPart.CFrame = tRoot.CFrame * CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0)
+                            char:SetPrimaryPartCFrame(tRoot.CFrame * CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(angle), 0, 0))
+                            rootPart.Velocity = Vector3.new(9e7, 9e7*10, 9e7)
+                            task.wait()
+                        until tRoot.Velocity.Magnitude > 500 or not getgenv().flingloop
+                        BV:Destroy()
+                    end)
+                    task.wait()
+                end
+            end)
+            MakeNotifi({Title = "🌀 الفلنق", Text = "✅ بدأ الفلنق على: " .. selectedFlingPlayer.Name, Time = 3})
+        else
+            getgenv().flingloop = false
+            MakeNotifi({Title = "🌀 الفلنق", Text = "⏹ تم إيقاف الفلنق!", Time = 3})
+        end
+    end
+})
+
+AddButton(TabFling, {
+    Name = "📥 سكربت فلنق GUI",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/0Ben1/fe./main/Fling%20GUI"))()
+        MakeNotifi({Title = "🌀 الفلنق", Text = "✅ جاري تحميل الفلنق GUI", Time = 3})
+    end
+})
+
+AddToggle(TabFling, {
+    Name = "🌀 سبين فلنق",
+    Default = false,
+    Callback = function(value)
+        if value then
+            local args = {[1] = "PickingTools", [2] = "ShoppingCart"}
+            ReplicatedStorage.RE:FindFirstChild("1Too1l"):InvokeServer(unpack(args))
+        end
+        while value do
+            task.wait(0.02)
+            local char = lp.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(90), 0)
+            end
+        end
+    end
+})
+-- ═══════════════════════════════════════════════════════
+-- 🐄 سكربت النعجة 🐗 - الجزء 5 من 8
+-- ═══════════════════════════════════════════════════════
+
+-- =============================================
+-- 3️⃣ تبويب التجسس
+-- =============================================
+local TabSpy = MakeTab({Name = "👁 التجسس", TabTitle = true})
+
+AddToggle(TabSpy, {
+    Name = "🎯 تجسس على الهدف",
+    Default = false,
+    Callback = function(value)
+        if value then
+            if foundPlayer then
+                startSpy(foundPlayer)
+                MakeNotifi({Title = "👁 التجسس", Text = "✅ بدأ التجسس على: " .. foundPlayer.Name, Time = 3})
+            else
+                MakeNotifi({Title = "❌ خطأ", Text = "اختر هدفاً أولاً!", Time = 3})
+            end
+     
